@@ -167,7 +167,7 @@ def set_up_vcf_output_dir(vcf_dir):
 		os.makedirs(vcf_dir+"/merged_pytest")
 	except OSError:
 		# Right now I'm just going to overwrite things in there.
-		warnings.warn("VCF directory "+vcf_dir+"/merged already exists!\nOverwriting contents...")
+		print("VCF directory "+vcf_dir+"/merged already exists!\nOverwriting contents...")
 	return None
 
 def pull_vcf_files(vcf_dir):
@@ -185,7 +185,7 @@ def merge_and_qual_filter(vcf_dir, quality_threshold):
 	# Set up the output directory, if possible. If not found, return with a warning.
 	output_dir_flag = set_up_vcf_output_dir(vcf_dir)
 	if output_dir_flag:
-		warnings.warn("VCF directory not found at %s" % vcf_dir)
+		print("VCF directory not found at %s" % vcf_dir)
 		return 1
 
 	# Pull the list of .vcf files in the directory. If none found, return with a warning.
@@ -288,7 +288,7 @@ def merge_and_qual_filter(vcf_dir, quality_threshold):
 		total_variants_all += total_variants
 		kept_variants_all += kept_variants
 		duplicates_all += (duplicates_removed+old_duplicates_removed)
-		write_to_log("\nFrom variant file %s: %d total variants, %d failed quality check at threshold %f, %d duplicates found \(%d overwritten\), %d variants kept in final version" % (vf, total_variants, qual_removed, quality_threshold, (duplicates_removed+old_duplicates_removed), old_duplicates_removed, kept_variants), vcf_log_location)
+		write_to_log("\nFrom variant file %s: %d total variants, %d failed quality check at threshold %f, %d duplicates found (%d overwritten), %d variants kept in final version" % (vf, total_variants, qual_removed, quality_threshold, (duplicates_removed+old_duplicates_removed), old_duplicates_removed, kept_variants), vcf_log_location)
 		write_to_log("------------------------", vcf_log_location)
 		f.close()
 		
@@ -2399,7 +2399,8 @@ if __name__ == "__main__":
 	# I dunno, it seems fine for now.
 	write_to_status("About to do a read_chr_bed")
 	try:
-		completed_process = run("'%s/%s' '%s/log/proteome.bed' '%s'" % (script_dir,
+		#print("\n\n%s \"%s/log/proteome.bed\" \"%s\"\n\n" % (read_chr_bed_name,results_folder,args.genome))
+		completed_process = run("\"%s/%s\" \"%s/log/proteome.bed\" \"%s\"" % (script_dir,
 																		read_chr_bed_name,
 																		results_folder,
 																		args.genome),
@@ -2489,7 +2490,7 @@ if __name__ == "__main__":
 			# Make a fasta out of the alternative splices with conserved exon boundaries
 			write_to_status("About to do a read_chr_bed")
 			try:
-				completed_process = run("'%s/%s' '%s/log/merged-junctions.alt.filtered.bed' '%s'" % (script_dir,
+				completed_process = run("\"%s/%s\" \"%s/log/merged-junctions.alt.filtered.bed\" \"%s\"" % (script_dir,
 																									 read_chr_bed_name,
 																									 results_folder,
 																									 args.genome),
@@ -2507,7 +2508,7 @@ if __name__ == "__main__":
 			# Make a fasta out of the alternative splices with conserved donor boundaries
 			write_to_status("About to do a read_chr_bed")
 			try:
-				completed_process = run("'%s/%s' '%s/log/merged-junctions.donor.filtered.bed' '%s'" % (script_dir,
+				completed_process = run("\"%s/%s\" \"%s/log/merged-junctions.donor.filtered.bed\" \"%s\"" % (script_dir,
 																									   read_chr_bed_name,
 																									   results_folder,
 																									   args.genome),
@@ -2525,7 +2526,7 @@ if __name__ == "__main__":
 			# Now to tackle the novels...
 			write_to_status("About to do a read_chr_bed")
 			try:
-				completed_process = run("'%s/%s' '%s/log/merged-junctions.novel.filtered.bed' '%s'" % (script_dir,
+				completed_process = run("\"%s/%s\" \"%s/log/merged-junctions.novel.filtered.bed\" \"%s\"" % (script_dir,
 																									   read_chr_bed_name,
 																									   results_folder,
 																									   args.genome),
@@ -2569,7 +2570,7 @@ if __name__ == "__main__":
 			create_fusion_bed(results_folder)
 			write_to_status("About to do a read_chr_bed")
 			try:
-				completed_process = run("'%s/%s' '%s/log/fusions.bed' '%s'" % (script_dir,
+				completed_process = run("\"%s/%s\" \"%s/log/fusions.bed\" \"%s\"" % (script_dir,
 																			   read_chr_bed_name,
 																			   results_folder,
 																			   args.genome),
