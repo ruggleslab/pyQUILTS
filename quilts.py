@@ -29,15 +29,12 @@ Emily Kawaler
 
 import argparse
 import os
-import sys
 import shutil
 from datetime import datetime
-from subprocess import call, check_call, CalledProcessError
+from subprocess import call, check_call, run, CalledProcessError
 import warnings
 from exonSearchTree import ExonSearchTree
-from string import maketrans
 import re
-from sets import Set
 from itertools import product
 
 # ahhhh look at these hideous global variables
@@ -46,6 +43,7 @@ global referrorfile
 global statusfile
 global results_folder
 global codon_map
+global read_chr_bed_name
 
 ### These functions are used in the setup phase.
 
@@ -169,7 +167,7 @@ def set_up_vcf_output_dir(vcf_dir):
 		os.makedirs(vcf_dir+"/merged_pytest")
 	except OSError:
 		# Right now I'm just going to overwrite things in there.
-		warnings.warn("VCF directory "+vcf_dir+"/merged already exists!\nOverwriting contents...")
+		print("VCF directory "+vcf_dir+"/merged already exists!\nOverwriting contents...")
 	return None
 
 def pull_vcf_files(vcf_dir):
@@ -187,7 +185,7 @@ def merge_and_qual_filter(vcf_dir, quality_threshold):
 	# Set up the output directory, if possible. If not found, return with a warning.
 	output_dir_flag = set_up_vcf_output_dir(vcf_dir)
 	if output_dir_flag:
-		warnings.warn("VCF directory not found at %s" % vcf_dir)
+		print("VCF directory not found at %s" % vcf_dir)
 		return 1
 
 	# Pull the list of .vcf files in the directory. If none found, return with a warning.
@@ -290,7 +288,7 @@ def merge_and_qual_filter(vcf_dir, quality_threshold):
 		total_variants_all += total_variants
 		kept_variants_all += kept_variants
 		duplicates_all += (duplicates_removed+old_duplicates_removed)
-		write_to_log("\nFrom variant file %s: %d total variants, %d failed quality check at threshold %f, %d duplicates found \(%d overwritten\), %d variants kept in final version" % (vf, total_variants, qual_removed, quality_threshold, (duplicates_removed+old_duplicates_removed), old_duplicates_removed, kept_variants), vcf_log_location)
+		write_to_log("\nFrom variant file %s: %d total variants, %d failed quality check at threshold %f, %d duplicates found (%d overwritten), %d variants kept in final version" % (vf, total_variants, qual_removed, quality_threshold, (duplicates_removed+old_duplicates_removed), old_duplicates_removed, kept_variants), vcf_log_location)
 		write_to_log("------------------------", vcf_log_location)
 		f.close()
 		
@@ -415,7 +413,7 @@ def get_variants(vcf_file, proteome_file, type):
 			est.add_exon(chr, int(spoffsets[i])+start, int(spoffsets[i])+start+int(splengths[i])-1, total_exon_length, name)	
 			total_exon_length += int(splengths[i])		
 		line = f.readline()
-	#print est.total_exons
+	#print(est.total_exons)
 	f.close()
 
 	f = open(vcf_file, 'r')
@@ -498,7 +496,7 @@ def process_gene(header_line, second_header, exon_headers, exon_seqs, variants, 
 		return changes, aa_substs, indels
 
 	# Ready the translation table for the reverse strand.
-	translate_table = maketrans("ACGTacgt","TGCAtgca")
+	translate_table = str.maketrans("ACGTacgt","TGCAtgca")
 	
 	# For each variant in our variants, check if it will become an AA substitution.
 	# Do I check only a single reading frame? That's what they did. 
@@ -541,14 +539,14 @@ def process_gene(header_line, second_header, exon_headers, exon_seqs, variants, 
 				indels.append(var)
 			continue
 		
-		triplet_start = ((pos/3)*3) # start of the triplet containing pos. counting from 0, not 1
+		triplet_start = (int(pos/3)*3) # start of the triplet containing pos. counting from 0, not 1
 		triplet_orig = full_seq[triplet_start:(triplet_start+3)].upper()
 		triplet_subst = var.split(':')[0].split(str(pos))[-1]
 		if triplet_orig == '':
-			print '\n'+'Empty codon: '+var, full_seq, len(full_seq), triplet_start, header_line
+			print('\n'+'Empty codon: '+var, full_seq, len(full_seq), triplet_start, header_line)
 			continue
 		if len(triplet_orig) != 3:
-			print '\n'+'Triplet with length <3 (length of sequence likely not divisible by 3, for whatever reason): '+var, full_seq, len(full_seq), triplet_start, header_line
+			print('\n'+'Triplet with length <3 (length of sequence likely not divisible by 3, for whatever reason): '+var, full_seq, len(full_seq), triplet_start, header_line)
 			continue
 		subst_pos = pos%3
 		triplet_new = triplet_orig[:subst_pos] + triplet_subst + triplet_orig[subst_pos+1:] # This did! change it in both.
@@ -562,8 +560,8 @@ def process_gene(header_line, second_header, exon_headers, exon_seqs, variants, 
 		AA_new = codon_map[triplet_new]
 		# If this was a start codon, ignore it for the time being.
 		if AA_old == 'M' and triplet_start == 0:
-			#print "Variant in start codon"
-			#print header_line.split('\t')[3]+'\t'+var+'\t'+triplet_orig+'\t'+triplet_new+'\t'+full_seq[subst_pos-3:subst_pos+6]
+			#print("Variant in start codon")
+			#print(header_line.split('\t')[3]+'\t'+var+'\t'+triplet_orig+'\t'+triplet_new+'\t'+full_seq[subst_pos-3:subst_pos+6])
 			write_to_log("Start codon variant found: %s" % (header_line.split('\t')[3]+'\t'+var+'\t'+triplet_orig+'\t'+triplet_new+'\t'+full_seq[subst_pos-3:subst_pos+6]),logfile)
 			continue
 		# If neither the old nor the new codon is a stop codon and the AA changes,
@@ -572,10 +570,10 @@ def process_gene(header_line, second_header, exon_headers, exon_seqs, variants, 
 		# Now we're just checking whether the old and new AAs are different. Leaving stop codon things in...
 		if AA_old != AA_new:
 			if reverse_flag:
-				total_AA = len(full_seq)/3
-				position = total_AA-(pos/3)
+				total_AA = int(len(full_seq)/3)
+				position = total_AA-int(pos/3)
 			else:
-				position = pos/3+1
+				position = int(pos/3)+1
 			
 			try:
 				orig_seq = ref_prot[header_line.split('\t')[3]]
@@ -620,11 +618,11 @@ def process_gene(header_line, second_header, exon_headers, exon_seqs, variants, 
 				# Make this somatic or germline, whichever the most recent variant was. Could conceivably do this better
 				if reverse_flag:
 					change = "%s-%s%d%s:0.0" % (var.split('-')[0],triplet_orig[::-1].translate(translate_table), triplet_start, triplet_new[::-1].translate(translate_table))
-					total_AA = len(full_seq)/3
-					position = total_AA-(pos/3)
+					total_AA = int(len(full_seq)/3)
+					position = total_AA-int(pos/3)
 				else:
 					change = "%s-%s%d%s:0.0" % (var.split('-')[0],triplet_orig, triplet_start, triplet_new)
-					position = pos/3+1
+					position = int(pos/3)+1
 				try:
 					orig_seq = ref_prot[header_line.split('\t')[3]]
 					orig_aa = orig_seq[position-1]
@@ -765,7 +763,7 @@ def write_out_indel_bed_dna(header_line, second_header, exon_headers, indels, ou
 					try:
 						write_to_status("Found a deletion that goes beyond the exon. %s\t%s" % (ex_head[0], indel))
 					except OSError:
-						print "Found a very strange deletion: " + '\t'.join(ex_head) + '\t' + indel
+						print("Found a very strange deletion: " + '\t'.join(ex_head) + '\t' + indel)
 				tmp_ex_head = ex_head
 				tmp_ex_head[4] = str(new_length)
 				ex_head_to_write = '\t'.join(tmp_ex_head)
@@ -911,7 +909,7 @@ def translate_seq(sequence, strand, return_all = False):
 	global codon_map
 	
 	if strand == '-':
-		translate_table = maketrans("ACGTacgt","TGCAtgca")
+		translate_table = str.maketrans("ACGTacgt","TGCAtgca")
 		sequence = sequence[::-1].translate(translate_table)
 	
 	# Didn't find any of these yet, just takes up time. Should probably have a check like this in there more formally.
@@ -942,8 +940,8 @@ def translate_seq(sequence, strand, return_all = False):
 def calculate_chr_pos(map_section):
 	'''Finding the chromosomal position of a variant'''
 	gene_start, strand = int(map_section.split()[0][:-1]),map_section.split()[0][-1]
-	lengths = map(int,map_section.split()[1].rstrip(',').split(','))
-	starts = map(int,map_section.split()[2].rstrip(',').split(','))
+	lengths = list(map(int,map_section.split()[1].rstrip(',').split(',')))
+	starts = list(map(int,map_section.split()[2].rstrip(',').split(',')))
 	snp = map_section.split()[-1].split('-')[-1]
 	snp_pos = int(re.findall(r'\d+', snp)[0])
 	orig_nt, new_nt = snp.split(str(snp_pos))[0],snp.split(str(snp_pos))[-1]
@@ -955,6 +953,7 @@ def calculate_chr_pos(map_section):
 			return "%s%d%s" % (orig_nt,start_sec,new_nt)
 		else:
 			tot_len += lengths[i]
+
 
 def format_aa_header(orig_header,abbr,desc):
 	#>NP_001909-G-T299C (MAP:chr1:100661810- 168,72,192,78,167,217,122,182,76,124,51 0,9975,10190,14439,18562,19728,22371,34478,39181,44506,53515 G-T299C:10378.200000) (VAR:G-S384G:10378.200000)
@@ -1429,9 +1428,9 @@ def make_indel_peptide_fasta(log_dir, logfile):
 		to_insert = indel.split(str(nt_pos))[1]
 		seq = f.readline().rstrip() # Next line is the sequence
 		if strand == '+':
-			aa_pos = nt_pos/3 # Again, indexes from zero
+			aa_pos = int(nt_pos/3) # Again, indexes from zero
 		else:
-			aa_pos = len(seq) - nt_pos/3
+			aa_pos = len(seq) - int(nt_pos/3)
 		tryptic_peptides = trypsinize(seq, aa_pos)
 		if (len(to_insert) - len(to_delete))%3 == 0: # no change in frame, so only the indel is changed
 			if len(tryptic_peptides) > 0:
@@ -1567,8 +1566,8 @@ def merge_junction_files(junc_dir, log_dir):
 			spline = line.split()
 			if len(spline) > 11:
 				chrm, end_ex_1, begin_ex_2, junc_num, num_observ, len_exons, begin_exons = spline[0], int(spline[1]), int(spline[2]), spline[3], int(spline[4]), spline[10].rstrip(','), spline[11].rstrip().rstrip(',')
-				splen_exons = map(int,len_exons.split(','))
-				spbegin_exons = map(int,begin_exons.split(','))
+				splen_exons = list(map(int,len_exons.split(',')))
+				spbegin_exons = list(map(int,begin_exons.split(',')))
 				begin_intron = end_ex_1
 				end_intron = begin_ex_2
 				spbegin_exons[1] = spbegin_exons[1]-splen_exons[1]+splen_exons[0]-2 # -2 for some weird read_chr_bed nonsense
@@ -1601,7 +1600,8 @@ def merge_junction_files(junc_dir, log_dir):
 	w.close()
 							
 def filter_known_transcripts(transcriptome_bed, results_folder, logfile):
- 	'''Filters out spliceform transcripts that are known from those that aren't, and annotates the ones that can be annotated. Haven't done any serious testing on this yet, so...yeah, use at yr own risk'''
+	""" Filters out spliceform transcripts that are known from those that aren't, and annotates the ones that can
+	be annotated. Haven't done any serious testing on this yet, so...yeah, use at yr own risk """
 
 	junctions_model = {}
 	junctions_alternative = {}
@@ -1618,8 +1618,8 @@ def filter_known_transcripts(transcriptome_bed, results_folder, logfile):
 		for line in f.readlines():
 			spline = line.split('\t')
 			chrm, begin_exon, trans_id, strand, block_count, block_sizes, block_starts = spline[0], int(spline[1]), spline[3], spline[5], int(spline[9]), spline[10].rstrip(','), spline[11].rstrip().rstrip(',')
-			sizes = map(int, block_sizes.split(','))
-			starts = map(int, block_starts.split(','))
+			sizes = list(map(int, block_sizes.split(',')))
+			starts = list(map(int, block_starts.split(',')))
 			start = begin_exon
 
 			#Inclusive of (start+block lengths), EXCLUSIVE of (start+block starts) even 0
@@ -1666,7 +1666,7 @@ def filter_known_transcripts(transcriptome_bed, results_folder, logfile):
 		spline = line.split()
 		if len(spline) > 11:
 			chrm, beg_ex_1, end_ex_2, junc_num, num_observ, len_exons, begin_exons = spline[0], int(spline[1]), int(spline[2]), spline[3], int(spline[4]), spline[10], spline[11]
-			splen_exons = map(int,len_exons.split(','))
+			splen_exons = list(map(int,len_exons.split(',')))
 			#spbegin_exons = map(int,begin_exons.split(','))
 			if num_observ >= 1:	
 				# Figure out whether it already exists in the database
@@ -1821,7 +1821,7 @@ def write_known_endpoints(junc_line, prot_line):
 	junc_name = spjunc[3].split('-')[0]
 	num_observ = int(spjunc[4])
 	len_exons = spjunc[10]
-	splen_exons = map(int,len_exons.split(','))
+	splen_exons = list(map(int,len_exons.split(',')))
 	beg_ex_1 = int(spjunc[1])
 	end_ex_2 = int(spjunc[2])
 	end_ex_1 = beg_ex_1+splen_exons[0]
@@ -1832,8 +1832,8 @@ def write_known_endpoints(junc_line, prot_line):
 	chr, start, end, prot_id, strand, block_count, block_sizes, block_starts = spline[0], int(spline[1]), int(spline[2]), spline[3], spline[5], int(spline[9]), spline[10].rstrip(','), spline[11].rstrip().rstrip(',')
 	spblock_sizes = block_sizes.split(',')
 	spblock_starts = block_starts.split(',')
-	int_block_sizes= map(int,spblock_sizes)
-	int_block_starts = map(int,spblock_starts)
+	int_block_sizes= list(map(int,spblock_sizes))
+	int_block_starts = list(map(int,spblock_starts))
 	
 	# Calculate: donor exon #, acceptor exon #, new block count/sizes/starts
 	donor = None
@@ -1870,7 +1870,7 @@ def write_donor_endpoint(junc_line, prot_line):
 	junc_name = spjunc[3].split('-')[0]
 	num_observ = int(spjunc[4])
 	len_exons = spjunc[10]
-	splen_exons = map(int,len_exons.split(','))
+	splen_exons = list(map(int,len_exons.split(',')))
 	beg_ex_1 = int(spjunc[1])
 	end_ex_2 = int(spjunc[2])
 	end_ex_1 = beg_ex_1+splen_exons[0]
@@ -1881,8 +1881,8 @@ def write_donor_endpoint(junc_line, prot_line):
 	chr, start, end, prot_id, strand, block_count, block_sizes, block_starts = spline[0], int(spline[1]), int(spline[2]), spline[3], spline[5], int(spline[9]), spline[10].rstrip(','), spline[11].rstrip().rstrip(',')
 	spblock_sizes = block_sizes.split(',')
 	spblock_starts = block_starts.split(',')
-	int_block_sizes= map(int,spblock_sizes)
-	int_block_starts = map(int,spblock_starts)
+	int_block_sizes= list(map(int,spblock_sizes))
+	int_block_starts = list(map(int,spblock_starts))
 	
 	# Calculate: donor exon #, acceptor exon #, new block count/sizes/starts
 	low_exon = None
@@ -1922,7 +1922,7 @@ def write_donor_endpoint(junc_line, prot_line):
 		new_block_count = block_count - high_exon + 2
 		new_block_sizes = str(splen_exons[0])+','+','.join(spblock_sizes[high_exon-1:])
 		int_block_starts = [x+add_to_start for x in int_block_starts]
-		spblock_starts = map(str,int_block_starts)
+		spblock_starts = list(map(str,int_block_starts))
 		new_block_starts = "0,"+','.join(spblock_starts[high_exon-1:])
 		new_junc_name = "-".join([prot_id, str(block_count-high_exon+1), str(num_observ), str(end_ex_1), str(beg_ex_2), junc_name])
 		
@@ -2096,7 +2096,7 @@ def translate_novels_with_trypsin(log_dir, bed_file, logfile):
 def translate_novels(log_dir, bed_file, logfile):
 	'''In the bed file we read in, the sequences come in pairs - first sequence in the pair is the left gene, second is the right gene.'''
 	
-	translate_table = maketrans("ACGTacgt","TGCAtgca")
+	translate_table = str.maketrans("ACGTacgt","TGCAtgca")
 	
 	f = open(log_dir+bed_file,'r')
 	out_fasta = open(log_dir+bed_file+".fasta",'w') # The original QUILTS writes two other files but they're just duplicates of proteome.aa.var.bed and proteome.aa.var.bed.dna, it seems. For now I'm leaving them out.
@@ -2235,7 +2235,7 @@ def create_fusion_bed(result_dir):
 def translate_fusions(result_dir):
 	'''In the bed file we read in, the sequences come in pairs - first sequence in the pair is the left gene, second is the right gene.'''
 	
-	translate_table = maketrans("ACGTacgt","TGCAtgca")
+	translate_table = str.maketrans("ACGTacgt","TGCAtgca")
 	
 	f = open(result_dir+'/log/fusions.bed.dna','r')
 	w = open(result_dir+'/log/fusions.fasta','w')
@@ -2258,7 +2258,7 @@ def translate_fusions(result_dir):
 					second = True
 		if pos%5 == 0:
 			#if len(line.split()) < 6:
-			#	print line
+			#	print(line)
 			if line.split()[5] == '-':
 				seq += line.rstrip().split()[-1][::-1].translate(translate_table)
 			else:
@@ -2283,7 +2283,7 @@ def translate_fusions(result_dir):
 			else:
 				second = True
 			pos = 0
-		#print pos, line
+		#print(pos, line)
 		line = f.readline()
 		pos += 1
 
@@ -2305,25 +2305,39 @@ def write_to_log(message, log_file):
 	# I think this is more efficient than opening and writing to the end of the file with the 
 	# Python I/O tools, but if not it would probably be more convenient to use those.
 	# Fixed it so we can write messages with returns in them!
-	msg = message.split('\n')
-	for m in msg:
-		call("echo "+m+" >> "+log_file, shell=True)
+	# Write message to log
+	# msg = message.split('\n')
+	# for m in msg:
+	#	call("echo "+m+" >> "+log_file, shell=True)
+
+	with open(log_file, 'a') as f:
+		if message[-1] != "\n":
+			message += "\n"
+		f.write(message)
+
+
 
 def write_to_status(message):
 	'''Writes a message to the status log.'''
 	# Same comment as in write_to_log
-	msg = message.split('\n')
-	for m in msg:
-		call("echo "+m+" >> "+statusfile, shell=True)
+	#msg = message.split('\n')
+	#for m in msg:
+	#	call("echo "+m+" >> "+statusfile, shell=True)
+
+	with open(statusfile, 'a') as f:
+		if message[-1] != "\n":
+			message += "\n"
+		f.write(message)
 
 def raise_warning(warn_message):
 	'''The default warning is ugly! I'm making a better one. Okay I'm not, this is a waste of time right now.'''
 	my_warning = warnings.warn(warn_message)
-	print my_warning
+	print(my_warning)
 	
 def quit_if_no_variant_files(args):
 	if not (args.germline or args.somatic or args.junction or args.fusion):
 		raise SystemExit("ERROR: Couldn't find any variant files!\nAborting program.")
+
 
 # Main function!
 if __name__ == "__main__":
@@ -2337,6 +2351,16 @@ if __name__ == "__main__":
 	write_to_status("Started")
 	write_to_log("Version Python.0", logfile)
 	write_to_log("Reference DB used: "+args.proteome.split("/")[-1], logfile)
+
+	# Set the name of read_chr_bed based on the OS detected
+	if os.name == 'nt':
+		read_chr_bed_name = "read_chr_bed.exe"
+		write_to_log("Windows OS detected: using " + read_chr_bed_name, logfile)
+	elif os.name == 'posix':
+		read_chr_bed_name = "read_chr_bed"
+		write_to_log("MacOS/Linux detected: using " + read_chr_bed_name, logfile)
+	else:
+		raise SystemExit(f"ERROR: Unrecognized OS ({os.name}). Aborting program.")
 	
 	# Set up codon map
 	codon_map = {"TTT":"F","TTC":"F","TTA":"L","TTG":"L","CTT":"L","CTC":"L","CTA":"L","CTG":"L",
@@ -2373,10 +2397,21 @@ if __name__ == "__main__":
 	# a fasta file of exomes.
 	# Possible but unlikely future work: rewrite the C file (still in C though) so it's more efficient?
 	# I dunno, it seems fine for now.
+	write_to_status("About to do a read_chr_bed")
 	try:
-		check_call("%s/read_chr_bed %s/log/proteome.bed %s" % (script_dir, results_folder, args.genome), shell=True)
+		#print("\n\n%s \"%s/log/proteome.bed\" \"%s\"\n\n" % (read_chr_bed_name,results_folder,args.genome))
+		completed_process = run("\"%s/%s\" \"%s/log/proteome.bed\" \"%s\"" % (script_dir,
+																		read_chr_bed_name,
+																		results_folder,
+																		args.genome),
+								capture_output=True, text=True, check=True, shell=True)
+		if completed_process.stdout:
+			write_to_status(completed_process.stdout)
+		if completed_process.stderr:
+			write_to_status(completed_process.stderr)
 	except CalledProcessError:
 		raise SystemExit("ERROR: read_chr_bed didn't work - now we don't have a proteome.bed.dna file. Try recompiling read_chr_bed.c.\nAborting program.")
+	write_to_status("Done with read_chr_bed to create proteome.bed.dna")
 	# Commented the above out for speed - it's slow, so for current testing purposes I'm just copying it from elsewhere
 	#shutil.copy('/ifs/data/proteomics/tcga/scripts/quilts/pyquilts/proteome.bed.dna', results_folder+"/log/")
 	
@@ -2455,7 +2490,15 @@ if __name__ == "__main__":
 			# Make a fasta out of the alternative splices with conserved exon boundaries
 			write_to_status("About to do a read_chr_bed")
 			try:
-				check_call("%s/read_chr_bed %s/log/merged-junctions.alt.filtered.bed %s" % (script_dir, results_folder, args.genome), shell=True)
+				completed_process = run("\"%s/%s\" \"%s/log/merged-junctions.alt.filtered.bed\" \"%s\"" % (script_dir,
+																									 read_chr_bed_name,
+																									 results_folder,
+																									 args.genome),
+										capture_output=True, text=True, check=True, shell=True)
+				if completed_process.stdout:
+					write_to_status(completed_process.stdout)
+				if completed_process.stderr:
+					write_to_status(completed_process.stderr)
 				# Don't know why this copies instead of moving. If I never use merged-junctions.filter.A.bed.dna again, just move it or have read_chr_bed output the alternative.bed.dna file instead.
 				shutil.copy(results_folder+'/log/merged-junctions.alt.filtered.bed.dna', results_folder+'/log/alternative.bed.dna')
 			except CalledProcessError:
@@ -2465,7 +2508,15 @@ if __name__ == "__main__":
 			# Make a fasta out of the alternative splices with conserved donor boundaries
 			write_to_status("About to do a read_chr_bed")
 			try:
-				check_call("%s/read_chr_bed %s/log/merged-junctions.donor.filtered.bed %s" % (script_dir, results_folder, args.genome), shell=True)
+				completed_process = run("\"%s/%s\" \"%s/log/merged-junctions.donor.filtered.bed\" \"%s\"" % (script_dir,
+																									   read_chr_bed_name,
+																									   results_folder,
+																									   args.genome),
+										capture_output=True, text=True, check=True, shell=True)
+				if completed_process.stdout:
+					write_to_status(completed_process.stdout)
+				if completed_process.stderr:
+					write_to_status(completed_process.stderr)
 				# Don't know why this copies instead of moving.
 				shutil.copy(results_folder+'/log/merged-junctions.donor.filtered.bed.dna', results_folder+'/log/donor.bed.dna')
 			except CalledProcessError:
@@ -2475,7 +2526,15 @@ if __name__ == "__main__":
 			# Now to tackle the novels...
 			write_to_status("About to do a read_chr_bed")
 			try:
-				check_call("%s/read_chr_bed %s/log/merged-junctions.novel.filtered.bed %s" % (script_dir, results_folder, args.genome), shell=True)
+				completed_process = run("\"%s/%s\" \"%s/log/merged-junctions.novel.filtered.bed\" \"%s\"" % (script_dir,
+																									   read_chr_bed_name,
+																									   results_folder,
+																									   args.genome),
+										capture_output=True, text=True, check=True, shell=True)
+				if completed_process.stdout:
+					write_to_status(completed_process.stdout)
+				if completed_process.stderr:
+					write_to_status(completed_process.stderr)
 				shutil.copy(results_folder+'/log/merged-junctions.novel.filtered.bed.dna', results_folder+'/log/novel.bed.dna')
 			except CalledProcessError:
 				warnings.warn("WARNING: read_chr_bed didn't work - now we don't have a merged-junctions.novel.filtered.bed.dna file. Will not have a fasta file of novel spliceforms. Try recompiling read_chr_bed.c.")
@@ -2511,7 +2570,15 @@ if __name__ == "__main__":
 			create_fusion_bed(results_folder)
 			write_to_status("About to do a read_chr_bed")
 			try:
-				check_call("%s/read_chr_bed %s/log/fusions.bed %s" % (script_dir, results_folder, args.genome), shell=True)
+				completed_process = run("\"%s/%s\" \"%s/log/fusions.bed\" \"%s\"" % (script_dir,
+																			   read_chr_bed_name,
+																			   results_folder,
+																			   args.genome),
+										capture_output=True, text=True, check=True, shell=True)
+				if completed_process.stdout:
+					write_to_status(completed_process.stdout)
+				if completed_process.stderr:
+					write_to_status(completed_process.stderr)
 			except CalledProcessError:
 				warnings.warn("WARNING: read_chr_bed didn't work - now we don't have a fusions.bed.dna file. Will not be able to perform fusions. Try recompiling read_chr_bed.c.")
 			write_to_status("Done with read_chr_bed to fusions.bed.dna")
