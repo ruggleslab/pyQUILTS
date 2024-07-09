@@ -43,6 +43,7 @@ global referrorfile
 global statusfile
 global results_folder
 global codon_map
+global read_chr_bed_name
 
 ### These functions are used in the setup phase.
 
@@ -166,7 +167,7 @@ def set_up_vcf_output_dir(vcf_dir):
 		os.makedirs(vcf_dir+"/merged_pytest")
 	except OSError:
 		# Right now I'm just going to overwrite things in there.
-		warnings.warn("VCF directory "+vcf_dir+"/merged already exists!\nOverwriting contents...")
+		print("VCF directory "+vcf_dir+"/merged already exists!\nOverwriting contents...")
 	return None
 
 def pull_vcf_files(vcf_dir):
@@ -184,7 +185,7 @@ def merge_and_qual_filter(vcf_dir, quality_threshold):
 	# Set up the output directory, if possible. If not found, return with a warning.
 	output_dir_flag = set_up_vcf_output_dir(vcf_dir)
 	if output_dir_flag:
-		warnings.warn("VCF directory not found at %s" % vcf_dir)
+		print("VCF directory not found at %s" % vcf_dir)
 		return 1
 
 	# Pull the list of .vcf files in the directory. If none found, return with a warning.
@@ -287,7 +288,7 @@ def merge_and_qual_filter(vcf_dir, quality_threshold):
 		total_variants_all += total_variants
 		kept_variants_all += kept_variants
 		duplicates_all += (duplicates_removed+old_duplicates_removed)
-		write_to_log("\nFrom variant file %s: %d total variants, %d failed quality check at threshold %f, %d duplicates found \(%d overwritten\), %d variants kept in final version" % (vf, total_variants, qual_removed, quality_threshold, (duplicates_removed+old_duplicates_removed), old_duplicates_removed, kept_variants), vcf_log_location)
+		write_to_log("\nFrom variant file %s: %d total variants, %d failed quality check at threshold %f, %d duplicates found (%d overwritten), %d variants kept in final version" % (vf, total_variants, qual_removed, quality_threshold, (duplicates_removed+old_duplicates_removed), old_duplicates_removed, kept_variants), vcf_log_location)
 		write_to_log("------------------------", vcf_log_location)
 		f.close()
 		
@@ -2337,6 +2338,7 @@ def quit_if_no_variant_files(args):
 	if not (args.germline or args.somatic or args.junction or args.fusion):
 		raise SystemExit("ERROR: Couldn't find any variant files!\nAborting program.")
 
+
 # Main function!
 if __name__ == "__main__":
 	# Parse input, make sure we have at least one variant file.
@@ -2349,6 +2351,16 @@ if __name__ == "__main__":
 	write_to_status("Started")
 	write_to_log("Version Python.0", logfile)
 	write_to_log("Reference DB used: "+args.proteome.split("/")[-1], logfile)
+
+	# Set the name of read_chr_bed based on the OS detected
+	if os.name == 'nt':
+		read_chr_bed_name = "read_chr_bed.exe"
+		write_to_log("Windows OS detected: using " + read_chr_bed_name, logfile)
+	elif os.name == 'posix':
+		read_chr_bed_name = "read_chr_bed"
+		write_to_log("MacOS/Linux detected: using " + read_chr_bed_name, logfile)
+	else:
+		raise SystemExit(f"ERROR: Unrecognized OS ({os.name}). Aborting program.")
 	
 	# Set up codon map
 	codon_map = {"TTT":"F","TTC":"F","TTA":"L","TTG":"L","CTT":"L","CTC":"L","CTA":"L","CTG":"L",
@@ -2387,7 +2399,11 @@ if __name__ == "__main__":
 	# I dunno, it seems fine for now.
 	write_to_status("About to do a read_chr_bed")
 	try:
-		completed_process = run("'%s/read_chr_bed' '%s/log/proteome.bed' '%s'" % (script_dir, results_folder, args.genome),
+		#print("\n\n%s \"%s/log/proteome.bed\" \"%s\"\n\n" % (read_chr_bed_name,results_folder,args.genome))
+		completed_process = run("\"%s/%s\" \"%s/log/proteome.bed\" \"%s\"" % (script_dir,
+																		read_chr_bed_name,
+																		results_folder,
+																		args.genome),
 								capture_output=True, text=True, check=True, shell=True)
 		if completed_process.stdout:
 			write_to_status(completed_process.stdout)
@@ -2474,7 +2490,10 @@ if __name__ == "__main__":
 			# Make a fasta out of the alternative splices with conserved exon boundaries
 			write_to_status("About to do a read_chr_bed")
 			try:
-				completed_process = run("'%s/read_chr_bed' '%s/log/merged-junctions.alt.filtered.bed' '%s'" % (script_dir, results_folder, args.genome),
+				completed_process = run("\"%s/%s\" \"%s/log/merged-junctions.alt.filtered.bed\" \"%s\"" % (script_dir,
+																									 read_chr_bed_name,
+																									 results_folder,
+																									 args.genome),
 										capture_output=True, text=True, check=True, shell=True)
 				if completed_process.stdout:
 					write_to_status(completed_process.stdout)
@@ -2489,7 +2508,10 @@ if __name__ == "__main__":
 			# Make a fasta out of the alternative splices with conserved donor boundaries
 			write_to_status("About to do a read_chr_bed")
 			try:
-				completed_process = run("'%s/read_chr_bed' '%s/log/merged-junctions.donor.filtered.bed' '%s'" % (script_dir, results_folder, args.genome),
+				completed_process = run("\"%s/%s\" \"%s/log/merged-junctions.donor.filtered.bed\" \"%s\"" % (script_dir,
+																									   read_chr_bed_name,
+																									   results_folder,
+																									   args.genome),
 										capture_output=True, text=True, check=True, shell=True)
 				if completed_process.stdout:
 					write_to_status(completed_process.stdout)
@@ -2504,7 +2526,10 @@ if __name__ == "__main__":
 			# Now to tackle the novels...
 			write_to_status("About to do a read_chr_bed")
 			try:
-				completed_process = run("'%s/read_chr_bed' '%s/log/merged-junctions.novel.filtered.bed' '%s'" % (script_dir, results_folder, args.genome),
+				completed_process = run("\"%s/%s\" \"%s/log/merged-junctions.novel.filtered.bed\" \"%s\"" % (script_dir,
+																									   read_chr_bed_name,
+																									   results_folder,
+																									   args.genome),
 										capture_output=True, text=True, check=True, shell=True)
 				if completed_process.stdout:
 					write_to_status(completed_process.stdout)
@@ -2545,7 +2570,10 @@ if __name__ == "__main__":
 			create_fusion_bed(results_folder)
 			write_to_status("About to do a read_chr_bed")
 			try:
-				completed_process = run("'%s/read_chr_bed' '%s/log/fusions.bed' '%s'" % (script_dir, results_folder, args.genome),
+				completed_process = run("\"%s/%s\" \"%s/log/fusions.bed\" \"%s\"" % (script_dir,
+																			   read_chr_bed_name,
+																			   results_folder,
+																			   args.genome),
 										capture_output=True, text=True, check=True, shell=True)
 				if completed_process.stdout:
 					write_to_status(completed_process.stdout)
