@@ -26,6 +26,10 @@
 
 	python prepare_ensembl.py <the file you downloaded in step 1> <the .pep.all.fa file>
 
-This should output four files: transcriptome.bed, proteome.bed, proteome-genes.txt, proteome-descriptions.txt. 
+This should output 5 files in the same folder as the prepare_ensembl.py script:
 
-4. Once this is done, rename your .pep.all.fa file to “proteome.fasta” (the file QUILTS will be looking for). Congratulations, you’ve got your reference proteome ready for QUILTS!
+    proteome.fasta, transcriptome.bed, proteome.bed, proteome-genes.txt, proteome-descriptions.txt.
+
+Congratulations, you’ve got your reference proteome ready for QUILTS!
+
+(You may move these files to a folder on your system where you'd like to store the proteome DB.)

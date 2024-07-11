@@ -1,17 +1,13 @@
 In order to generate the .cmp1 files QUILTS uses:
 
-1. Download *chr*.fa.gz files from ftp://ftp.ensembl.org/pub/current_fasta/[your organism]/dna/ (for human GRCh37, ftp://ftp.ensembl.org/pub/grch37/current/fasta/homo_sapiens/dna/)
-2. Run “perl gunzip_dir.pl <path to folder with your .fa.gz files>”, or simply “gunzip *.fa.gz”
-3. Run “perl compress_chr_dir.pl <path to folder with your .fa files>”
+1. Download *chr*.fa.gz files from ftp://ftp.ensembl.org/pub/current_fasta/[your organism]/dna/
+(for human GRCh38, ftp://ftp.ensembl.org/pub/current/fasta/homo_sapiens/dna/)
 
-So, if I had my files in /dir/hg38/, I would do:
+2. Run "python prepare_genome.py <path to folder with your .fa.gz files>"
 
-perl gunzip_dir.pl /dir/hg38/
-perl compress_chr_dir.pl /dir/hg38/
+This will create files with a .cmp1 extension, matching the .fa.gz files that were downloaded.
 
+Congratulations, you’ve got your reference proteome ready for QUILTS!
 
-If you get an error saying “[…]/compress_chr: cannot execute binary file”, try recompiling compress_chr.c:
-
-gcc -o compress_chr compress_chr.c
-
-and then try running compress_chr_dir.pl again.
+You may remove the .fa.gz files once the program runs successfully, and move the .cmp1 files to a folder on your system
+where you'd like to store the genome DB.
