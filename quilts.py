@@ -36,6 +36,7 @@ import warnings
 from exonSearchTree import ExonSearchTree
 import re
 from itertools import product
+import platform
 
 # ahhhh look at these hideous global variables
 global logfile
@@ -2357,8 +2358,14 @@ if __name__ == "__main__":
 		read_chr_bed_name = "read_chr_bed.exe"
 		write_to_log("Windows OS detected: using " + read_chr_bed_name, logfile)
 	elif os.name == 'posix':
-		read_chr_bed_name = "read_chr_bed"
-		write_to_log("MacOS/Linux detected: using " + read_chr_bed_name, logfile)
+		if platform.system() == 'Darwin':
+			read_chr_bed_name = "read_chr_bed"
+			write_to_log("macOS detected: using " + read_chr_bed_name, logfile)
+		elif platform.system() == 'Linux':
+			read_chr_bed_name = "read_chr_bed_lx"
+			write_to_log("Linux detected: using " + read_chr_bed_name, logfile)
+		else:
+			raise SystemExit(f"ERROR: Unrecognized POSIX OS ({platform.system()}). Aborting program.")
 	else:
 		raise SystemExit(f"ERROR: Unrecognized OS ({os.name}). Aborting program.")
 	
