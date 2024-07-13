@@ -4,6 +4,7 @@ import os
 import sys
 import gzip
 import io
+import re
 
 
 def main():
@@ -22,7 +23,8 @@ def main():
                 print("Processing file: ", file_path)
                 with gzip.open(file_path, 'rb') as ip:
                     with io.TextIOWrapper(ip, encoding='utf-8') as decoder:
-                        with open(file_path[:-3] + ".cpm1", 'w') as f_out:
+                        file_chr = re.match(r'.*chr\w*\.(\w+)\.fa\.gz$', file_path).group(1)
+                        with open(read_dir + "/chr" + file_chr + ".fa.cmp1", 'w') as f_out:
                             for line in decoder:
                                 if not line.startswith('>'):
                                     # Strip trailing whitespace characters including newline

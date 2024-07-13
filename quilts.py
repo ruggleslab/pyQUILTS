@@ -429,11 +429,11 @@ def get_variants(vcf_file, proteome_file, type):
 			chr, pos, id, old, new, qual = spline[0].lstrip('chr'), int(spline[1]), spline[2], spline[3], spline[4], spline[5]
 		except ValueError:
 			# Maybe write this to a log somewhere?
-			warnings.warn("Failed to parse %s" % line)
+			write_to_log("Failed to parse %s" % line, logfile)
 			line = f.readline()
 			continue
 		if not valid_nucleotides(new) or not valid_nucleotides(old):
-			warnings.warn("Failed to parse %s" % line)
+			write_to_log("Failed to parse %s" % line, logfile)
 			line = f.readline()
 			continue
 		if old == '.' or old == '-':
@@ -544,10 +544,10 @@ def process_gene(header_line, second_header, exon_headers, exon_seqs, variants, 
 		triplet_orig = full_seq[triplet_start:(triplet_start+3)].upper()
 		triplet_subst = var.split(':')[0].split(str(pos))[-1]
 		if triplet_orig == '':
-			print('\n'+'Empty codon: '+var, full_seq, len(full_seq), triplet_start, header_line)
+			write_to_log('\n'+'Empty codon: '+var+full_seq+str(len(full_seq))+str(triplet_start)+header_line, logfile)
 			continue
 		if len(triplet_orig) != 3:
-			print('\n'+'Triplet with length <3 (length of sequence likely not divisible by 3, for whatever reason): '+var, full_seq, len(full_seq), triplet_start, header_line)
+			write_to_log('\n'+'Triplet with length <3 (length of sequence likely not divisible by 3, for whatever reason): '+var+full_seq+str(len(full_seq))+str(triplet_start)+header_line, logfile)
 			continue
 		subst_pos = pos%3
 		triplet_new = triplet_orig[:subst_pos] + triplet_subst + triplet_orig[subst_pos+1:] # This did! change it in both.
@@ -2406,7 +2406,10 @@ if __name__ == "__main__":
 	# I dunno, it seems fine for now.
 	write_to_status("About to do a read_chr_bed")
 	try:
-		#print("\n\n%s \"%s/log/proteome.bed\" \"%s\"\n\n" % (read_chr_bed_name,results_folder,args.genome))
+		write_to_status("\"%s/%s\" \"%s/log/proteome.bed\" \"%s\"" % (script_dir,
+																		read_chr_bed_name,
+																		results_folder,
+																		args.genome))
 		completed_process = run("\"%s/%s\" \"%s/log/proteome.bed\" \"%s\"" % (script_dir,
 																		read_chr_bed_name,
 																		results_folder,
