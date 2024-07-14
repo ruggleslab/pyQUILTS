@@ -6,6 +6,7 @@
 import sys
 import os
 
+
 class Gene:
 	def __init__(self, chromosome, gene_id, protein_id, transcript_id, gene_name, gene_desc, strand):
 		self.chromosome = 'chr'+chromosome
@@ -24,7 +25,7 @@ class Gene:
 			self.prot_exons[int(exon_no)] = [int(prot_start)-1, int(prot_end)]
 
 	def print_bed_line(self):
-		exon_nos = self.prot_exons.keys()
+		exon_nos = list(self.prot_exons.keys())
 		exon_nos.sort()
 		total_length = 0
 		# End phase dealings - there can be an end phase on the final codon, which throws off 
@@ -55,7 +56,7 @@ class Gene:
 		return print_str
 	
 	def print_trans_line(self):
-		exon_nos = self.trans_exons.keys()
+		exon_nos = list(self.trans_exons.keys())
 		exon_nos.sort()
 		if self.strand == '+':
 			start = self.trans_exons[min(exon_nos)][0]
@@ -75,28 +76,33 @@ class Gene:
 		# Negative strand!?
 		return print_str
 
+
 # Clean up the proteome FASTA - remove everything that starts with an X or contains a stop codon
-f = open(sys.argv[2],'r')
-w = open('cleaned_proteome.fasta','w')
+f = open(sys.argv[2], 'r')
+w = open('cleaned_proteome.fasta', 'w')
 header = ''
 seq = ''
 line = f.readline()
+
 while line:
-    if line[0] == '>':
-        if seq != '' and seq[0] != 'X' and '*' not in seq:
-            w.write(header)
-            w.write(seq+'\n')
-        header = line
-        seq = ''
-    else:
-        seq += line.rstrip()
-    line = f.readline()
-if seq[0] != 'X' and '*' not in seq: # last one
-    w.write(header)
-    w.write(seq+'\n')
+	if line[0] == '>':
+		if seq != '' and seq[0] != 'X' and '*' not in seq:
+			w.write(header)
+			w.write(seq+'\n')
+		header = line
+		seq = ''
+	else:
+		seq += line.rstrip()
+	line = f.readline()
+
+if seq[0] != 'X' and '*' not in seq:  # last one
+	w.write(header)
+	w.write(seq+'\n')
+
 f.close()
 w.close()
-os.system('mv %s orig_proteome.fasta' % sys.argv[2])
+
+#os.system('mv %s orig_proteome.fasta' % sys.argv[2])
 os.system('mv cleaned_proteome.fasta proteome.fasta')
 
 # Finding where each column lives in the input file

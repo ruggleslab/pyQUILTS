@@ -1,12 +1,14 @@
-import argparse
 import shutil
+import sys
 
-parser = argparse.ArgumentParser(description="Prepare Proteome Reference")
+refLink = sys.argv[1]
+bedFile = sys.argv[2]
+#fastaFile = sys.argv[3]
 
 
-f = open('refLink.txt','r')
-genes = open('proteome-genes.txt','w')
-descriptions = open('proteome-descriptions.txt','w')
+f = open(refLink, 'r')
+genes = open('proteome-genes.txt', 'w')
+descriptions = open('proteome-descriptions.txt', 'w')
 trans_map = {}
 for line in f.readlines():
 	spline = line.split('\t')
@@ -18,8 +20,8 @@ f.close()
 genes.close()
 descriptions.close()
 
-f = open('refSeq.bed','r')
-w = open('proteome.bed','w')
+f = open(bedFile, 'r')
+w = open('proteome.bed', 'w')
 
 for line in f.readlines():
 	spline = line.rstrip().split('\t')
@@ -69,4 +71,4 @@ w.close()
 
 # I'm using "copy" here instead of "move" in case someone wants to run this again and 
 # doesn't remember where their refSeq.bed went.
-shutil.copy('refSeq.bed','transcriptome.bed')
+shutil.copy(bedFile, 'transcriptome.bed')

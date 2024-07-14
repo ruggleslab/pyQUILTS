@@ -1,6 +1,4 @@
 import argparse
-import shutil
-import sys
 import os
 
 parser = argparse.ArgumentParser(description="Prepare Proteome Reference")
@@ -38,71 +36,68 @@ else:
 				line = f.readline()
 	w.close()
 	f.close()
-	os.system('mv %s uniprot_proteome.fasta' % args.input_fasta)
+	#os.system('mv %s uniprot_proteome.fasta' % args.input_fasta)
 	os.system('mv tmp_proteome.fasta proteome.fasta')
 
-# Make transcriptome.bed and proteome.bed (transcriptome.bed is the uniprot bed file with all the swissprot/trembl entries removed depending on which version you're using, proteome.bed is that but untranslated sections are removed)
-if args.version == 'both':
-	pass
-	#os.system('cp %s transcriptome.bed' % args.bed_file) # copying in case they want to run it again and wonder where their uniprot bed file went
-else:
-	w = open('transcriptome.bed','w')
-	p = open('proteome.bed','w')
-	f = open(args.bed_file, 'r')
-	for line in f.readlines():
-		if line.split()[3].split('-')[0] in kept: # Keeping only SwissProt/TrEMBL
-			# Basic stuff for transcriptome file
-			spline = line.split()
-			spline[3] = spline[3].replace('-','@')
-			w.write('\t'.join(spline[:12])+'\n')
-			
-			# Fancier stuff for proteome file
-			pstart = int(spline[6])
-			pend = int(spline[7])
-			tstart = int(spline[1])
-			tend = int(spline[2])
-			lens = []
-			starts = []
-			ex_lens = map(int, spline[10].split(','))
-			ex_starts = map(int, spline[11].split(','))
-			pflag = False
-			for i in xrange(len(ex_lens)):
-				if not pflag:
-					# check if it's a start and then set pflag
-					if pstart <= tstart+ex_starts[i]+ex_lens[i]:
-						pflag = True
-						lens.append(tstart+ex_starts[i]+ex_lens[i]-pstart)
-						starts.append(0)
-				elif pflag:
-					# Check for end, break
-					if pend <= tstart+ex_starts[i]+ex_lens[i]:
-						lens.append(pend-tstart-ex_starts[i])
-						starts.append(tstart+ex_starts[i]-pstart)
-						break
-					# No end? Just add the thing and change the start
-					else:
-						lens.append(ex_lens[i])
-						starts.append(tstart+ex_starts[i]-pstart)
-			spline[1] = str(pstart)
-			spline[2] = str(pend)
-			spline[9] = str(len(lens))
-			spline[10] = ','.join(map(str,lens))
-			spline[11] = ','.join(map(str,starts))			
-			p.write('\t'.join(spline[:12])+'\n')
-			
-	w.close()
-	p.close()
-	f.close()
+# Make transcriptome.bed and proteome.bed (transcriptome.bed is the uniprot bed file with all the swissprot/trembl
+# entries removed depending on which version you're using, proteome.bed is that but untranslated sections are removed)
+w = open('transcriptome.bed','w')
+p = open('proteome.bed','w')
+f = open(args.bed_file, 'r')
+for line in f.readlines():
+	if args.version == 'both' or line.split()[3].split('-')[0] in kept:  # Keeping only SwissProt/TrEMBL
+		# Basic stuff for transcriptome file
+		spline = line.split()
+		spline[3] = spline[3].replace('-','@')
+		w.write('\t'.join(spline[:12])+'\n')
+
+		# Fancier stuff for proteome file
+		pstart = int(spline[6])
+		pend = int(spline[7])
+		tstart = int(spline[1])
+		tend = int(spline[2])
+		lens = []
+		starts = []
+		ex_lens = list(map(int, spline[10].split(',')))
+		ex_starts = list(map(int, spline[11].split(',')))
+		pflag = False
+		for i in range(len(ex_lens)):
+			if not pflag:
+				# check if it's a start and then set pflag
+				if pstart <= tstart+ex_starts[i]+ex_lens[i]:
+					pflag = True
+					lens.append(tstart+ex_starts[i]+ex_lens[i]-pstart)
+					starts.append(0)
+			elif pflag:
+				# Check for end, break
+				if pend <= tstart+ex_starts[i]+ex_lens[i]:
+					lens.append(pend-tstart-ex_starts[i])
+					starts.append(tstart+ex_starts[i]-pstart)
+					break
+				# No end? Just add the thing and change the start
+				else:
+					lens.append(ex_lens[i])
+					starts.append(tstart+ex_starts[i]-pstart)
+		spline[1] = str(pstart)
+		spline[2] = str(pend)
+		spline[9] = str(len(lens))
+		spline[10] = ','.join(map(str,lens))
+		spline[11] = ','.join(map(str,starts))
+		p.write('\t'.join(spline[:12])+'\n')
+
+w.close()
+p.close()
+f.close()
 
 # Make proteome-genes.txt and proteome-descriptions.txt
 f = open(args.info_file,'r')
 g = open('proteome-genes.txt','w')
 desc = open('proteome-descriptions.txt','w')
 
-header = f.readline().rstrip().split('\t')
-entry_pos = header.index("Entry")
-prot_pos = header.index("Protein names")
-gene_pos = header.index("Gene names")
+header = f.readline().rstrip().lower().split('\t')
+entry_pos = header.index("entry")
+prot_pos = header.index("protein names")
+gene_pos = header.index("gene names")
 #print header
 genes = {}
 
