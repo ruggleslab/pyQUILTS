@@ -16,3 +16,9 @@
 	python prepare_uniprot.py --bed_file [uniprot bed file name] --input_fasta [uniprot fasta file name] --info_file [tab-separated info file name] --version [‘swiss’,’trembl’, or ‘both’]
 
 This will leave you with the five reference files you need to run QUILTS: proteome.bed, transcriptome.bed, proteome.fasta, proteome-genes.txt, proteome-description.txt
+
+Congratulations, you’ve got your reference proteome ready for QUILTS!
+
+(You may move these files to a folder on your system where you'd like to store the proteome DB.)
+
+python prepare_uniprot.py --bed_file "/Users/sarahkeegan/code/ruggleslab/data/pyquilts-db/downloads/uniprot/UP000000589_10090_proteome.bed" --input_fasta "/Users/sarahkeegan/code/ruggleslab/data/pyquilts-db/downloads/uniprot/UP000000589_10090.fasta" --info_file "/Users/sarahkeegan/code/ruggleslab/data/pyquilts-db/downloads/uniprot/uniprotkb_taxonomy_id_9605_2024_07_13.tsv" --version "both"

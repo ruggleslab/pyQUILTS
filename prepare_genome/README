@@ -7,7 +7,7 @@ In order to generate the .cmp1 files QUILTS uses:
 
 This will create files with a .cmp1 extension, matching the .fa.gz files that were downloaded.
 
-Congratulations, you’ve got your reference proteome ready for QUILTS!
+Congratulations, you’ve got your reference genome ready for QUILTS!
 
 You may remove the .fa.gz files once the program runs successfully, and move the .cmp1 files to a folder on your system
 where you'd like to store the genome DB.
